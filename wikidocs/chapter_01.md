@@ -17,7 +17,18 @@ RAPIDS는 NVIDIA가 개발한 오픈소스 GPU 가속 데이터 분석 라이브
 |------|----------|
 | GPU | Compute Capability 7.0 이상 (RTX 20/30/40, GTX 16 시리즈) |
 | 드라이버 | CUDA 12.x: 525.60+, CUDA 13.x: 580.65+ |
-| OS | Linux, WSL2 (Windows는 WSL2 필수) |
+| OS | Linux (glibc 2.28+), WSL2 (Windows 11) |
+
+> **참고**: Pascal (GTX 10 시리즈) 지원은 RAPIDS 24.02에서 종료되었다.
+
+### 권장 사양
+
+| 항목 | 권장 사양 |
+|------|----------|
+| GPU VRAM | 16GB 이상 |
+| 시스템 메모리 | GPU VRAM의 2배 이상 (Dask 사용 시 특히 중요) |
+| 저장장치 | SSD (NVMe 권장) |
+| 다중 GPU | NVLink 연결 권장 |
 
 ---
 
@@ -29,9 +40,11 @@ RAPIDS는 NVIDIA가 개발한 오픈소스 GPU 가속 데이터 분석 라이브
 GPU가 있나요?
 ├─ 없음 → Colab 또는 Kaggle (4장 참고)
 └─ 있음 → 환경 격리가 필요한가요?
-          ├─ 예 → Docker (5.2 참고)
-          └─ 아니오 → Conda (5.1 참고)
+          ├─ 예 → Docker (6.2 참고)
+          └─ 아니오 → Conda (6.1 참고)
 ```
+
+> **로컬 설치 전**: 5장에서 CUDA 환경을 먼저 설정하세요.
 
 ### 방법별 비교
 
@@ -40,9 +53,10 @@ GPU가 있나요?
 | **Colab** | 설치 불필요, 무료 GPU | 세션 12시간 제한 | 입문자, 빠른 테스트 |
 | **Kaggle** | 설치 불필요, T4 GPU x2 | 주당 사용 시간 제한 | 입문자, 대회 참가 |
 | **Docker** | 환경 격리, 재현성 | Docker 학습 필요 | 팀 프로젝트, 프로덕션 |
-| **Conda** | 유연한 패키지 관리 | 환경 충돌 가능성 | 개인 연구, 커스터마이징 |
+| **Conda** | 유연한 패키지 관리, CUDA 자동 포함 | 환경 충돌 가능성 | 개인 연구, 커스터마이징 |
+| **pip** | 기존 환경에 추가 가능 | CUDA Toolkit 별도 설치 필요 | 기존 Python 환경 활용 |
 
-> **입문자 추천 순서**: Colab → Kaggle → Docker → Local Conda
+> **입문자 추천 순서**: Colab → Kaggle → Conda → Docker → pip
 
 ---
 
@@ -159,49 +173,287 @@ NVIDIA AI Workbench는 복잡한 환경 설정을 단일 플랫폼으로 간소�
 
 ---
 
-## 5. 로컬 환경
+## 5. 로컬 환경 준비
 
-### 5.1 Conda로 설치 (권장)
+로컬에서 RAPIDS를 사용하려면 먼저 NVIDIA 드라이버와 CUDA 환경을 설정해야 한다.
 
-#### Miniforge 설치
+### 5.1 CUDA와 CUDA Toolkit 이해하기
 
-```bash
-wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-bash Miniforge3-$(uname)-$(uname -m).sh
+#### CUDA란?
+
+CUDA(Compute Unified Device Architecture)는 NVIDIA GPU에서 병렬 연산을 수행하기 위한 플랫폼이다.
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    응용 프로그램                      │
+│              (PyTorch, RAPIDS, TensorFlow)           │
+├─────────────────────────────────────────────────────┤
+│                   CUDA Toolkit                       │
+│         (nvcc 컴파일러, cuBLAS, cuDNN 등)             │
+├─────────────────────────────────────────────────────┤
+│                  NVIDIA 드라이버                      │
+├─────────────────────────────────────────────────────┤
+│                   NVIDIA GPU                         │
+└─────────────────────────────────────────────────────┘
 ```
 
-#### RAPIDS 설치
+#### 왜 CUDA Toolkit이 필요한가?
+
+| 구성 요소 | 역할 | 필요한 경우 |
+|----------|------|------------|
+| **NVIDIA 드라이버** | GPU와 OS 간 통신 | 모든 GPU 사용 시 필수 |
+| **CUDA Toolkit** | GPU 프로그래밍 도구 (nvcc, 라이브러리) | PyTorch, TensorFlow 등 딥러닝 프레임워크 사용 시 |
+| **cuDNN** | 딥러닝 최적화 라이브러리 | 딥러닝 학습/추론 시 |
+
+- `nvidia-smi`의 "CUDA Version"은 **드라이버가 지원하는 최대 CUDA 버전**이다
+- 실제 CUDA Toolkit은 별도로 설치해야 한다
+- RAPIDS는 Conda 설치 시 필요한 CUDA 런타임을 자동으로 포함한다
+
+> **참고**: RAPIDS를 Conda로 설치하면 CUDA Toolkit을 별도로 설치하지 않아도 된다. 하지만 PyTorch나 다른 딥러닝 프레임워크와 함께 사용하려면 시스템에 CUDA Toolkit을 설치하는 것이 좋다.
+
+### 5.2 Windows에서 CUDA Toolkit 설치
+
+Windows에서 RAPIDS를 직접 실행할 수는 없지만, PyTorch 등 다른 CUDA 기반 라이브러리를 위해 CUDA Toolkit 설치가 필요할 수 있다.
+
+#### Step 1: NVIDIA 드라이버 설치
+
+1. [NVIDIA 드라이버 다운로드](https://www.nvidia.com/download/index.aspx) 접속
+2. GPU 모델 선택 후 다운로드
+3. 설치 후 재부팅
+
+#### Step 2: CUDA Toolkit 설치
+
+1. [CUDA Toolkit Archive](https://developer.nvidia.com/cuda-toolkit-archive) 접속
+2. 원하는 CUDA 버전 선택 (예: CUDA 12.5)
+3. **Operating System**: Windows
+4. **Architecture**: x86_64
+5. **Version**: 10 또는 11
+6. **Installer Type**: exe (local) 권장
+
+```
+다운로드 후 설치 진행 → 재부팅
+```
+
+#### Step 3: 설치 확인
+
+```powershell
+nvcc --version
+```
+
+출력 예시:
+```
+nvcc: NVIDIA (R) Cuda compiler driver
+Cuda compilation tools, release 12.5, V12.5.40
+```
+
+### 5.3 Ubuntu에서 드라이버/CUDA 설치
+
+#### 방법 1: 권장 드라이버 자동 설치
+
+```bash
+# 권장 드라이버 확인
+ubuntu-drivers devices
+
+# 권장 드라이버 자동 설치
+sudo ubuntu-drivers autoinstall
+
+# 재부팅
+sudo reboot
+```
+
+#### 방법 2: 특정 드라이버 수동 설치
+
+```bash
+sudo apt update
+sudo apt install nvidia-driver-535
+sudo reboot
+```
+
+#### CUDA Toolkit 설치
+
+```bash
+# CUDA 저장소 추가 (Ubuntu 22.04 예시)
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt update
+
+# CUDA Toolkit 설치
+sudo apt install cuda-toolkit-12-5
+```
+
+#### 환경 변수 설정
+
+`~/.bashrc`에 추가:
+
+```bash
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+```
+
+```bash
+source ~/.bashrc
+nvcc --version
+```
+
+### 5.4 WSL2 환경 설정 (Windows)
+
+Windows에서 RAPIDS를 사용하려면 WSL2(Windows Subsystem for Linux 2)가 필요하다.
+
+#### 필수 요구사항
+
+| 항목 | 요구사항 |
+|------|----------|
+| Windows 버전 | Windows 10 (빌드 19041+) 또는 Windows 11 |
+| WSL 버전 | WSL2 필수 (WSL1 미지원) |
+| GPU | Compute Capability 7.0 이상 |
+
+#### Step 1: Windows 기능 활성화
+
+**방법 1**: 제어판에서 설정
+1. **제어판** → **프로그램** → **Windows 기능 켜기/끄기**
+2. 다음 항목 체크:
+   - ✅ Linux용 Windows 하위 시스템
+   - ✅ 가상 머신 플랫폼
+3. 재부팅
+
+**방법 2**: PowerShell (관리자)
+```powershell
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+```
+
+재부팅 후 계속 진행.
+
+#### Step 2: WSL2 설치
+
+```powershell
+# PowerShell (관리자)
+wsl --install Ubuntu-22.04
+wsl --set-default-version 2
+wsl --update
+```
+
+#### Step 3: Windows에 NVIDIA 드라이버 설치
+
+> **중요**: WSL2에서는 Windows에 설치된 드라이버를 사용한다. WSL 내부에 별도로 드라이버를 설치하면 안 된다.
+
+1. [NVIDIA 드라이버 다운로드](https://www.nvidia.com/download/index.aspx)에서 **Windows용** 드라이버 설치
+2. "CUDA - WSL" 또는 일반 Game Ready/Studio 드라이버 모두 가능
+
+#### Step 4: WSL에서 GPU 인식 확인
+
+```bash
+# WSL 터미널에서
+nvidia-smi
+```
+
+GPU 정보가 표시되면 정상.
+
+#### Step 5: WSL에서 CUDA Toolkit 설치 (선택)
+
+```bash
+# CUDA for WSL 저장소 추가
+wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt update
+
+# CUDA Toolkit 설치
+sudo apt install cuda-toolkit-12-5
+```
+
+이후 6장의 Conda 또는 Docker 방법으로 RAPIDS 설치.
+
+---
+
+## 6. RAPIDS 설치
+
+### 6.1 Conda로 설치 (권장)
+
+#### Step 1: Miniforge 다운로드
+
+```bash
+cd /tmp
+wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" -O miniforge.sh
+```
+
+#### Step 2: Miniforge 설치
+
+```bash
+# -b: 대화형 프롬프트 없이 설치
+# -p: 설치 경로 지정
+bash miniforge.sh -b -p ~/miniforge3
+```
+
+설치 위치: `~/miniforge3`
+
+#### Step 3: Conda 초기화
+
+```bash
+~/miniforge3/bin/conda init bash
+```
+
+> 이 명령은 `~/.bashrc`에 conda 설정을 추가한다.
+
+#### Step 4: Conda 활성화
+
+**방법 1**: 새 터미널 열기 (권장)
+
+**방법 2**: 현재 터미널에서 바로 사용
+```bash
+source ~/miniforge3/etc/profile.d/conda.sh
+```
+
+#### Step 5: RAPIDS 환경 생성
 
 본인 환경에 맞게 `cuda-version`을 수정:
 
 ```bash
-# RAPIDS 환경 생성 (CUDA 12.5 예시)
-conda create -n rapids-24.08 \
+conda create -n rapids-24.12 \
     -c rapidsai -c conda-forge -c nvidia \
-    rapids=24.08 python=3.11 cuda-version=12.5
-
-# 환경 활성화
-conda activate rapids-24.08
+    rapids=24.12 python=3.12 cuda-version=12.5 -y
 ```
+
+> 설치 시간: 약 10-20분 소요 (네트워크 환경에 따라 다름)
 
 **옵션 설명:**
-- `-c rapidsai -c conda-forge -c nvidia`: 패키지 채널
-- `rapids=24.08`: RAPIDS 버전
-- `cuda-version=12.5`: nvidia-smi에서 확인한 버전 이하로 지정
 
-#### 설치 확인
+| 옵션 | 설명 |
+|------|------|
+| `-n rapids-24.12` | 환경 이름 |
+| `-c rapidsai -c conda-forge -c nvidia` | 패키지 채널 |
+| `rapids=24.12` | RAPIDS 버전 |
+| `python=3.12` | Python 버전 |
+| `cuda-version=12.5` | nvidia-smi에서 확인한 버전 이하로 지정 |
+| `-y` | 확인 프롬프트 자동 승인 |
 
-```python
-python -c "import cudf; print(cudf.__version__)"
-```
-
-#### 시각화 라이브러리 추가
+#### Step 6: 환경 활성화
 
 ```bash
-conda install -n rapids-24.08 -c conda-forge matplotlib seaborn
+conda activate rapids-24.12
 ```
 
-### 5.2 Docker로 설치
+프롬프트 앞에 `(rapids-24.12)`가 표시되면 정상.
+
+#### Step 7: 설치 확인
+
+```bash
+python -c "import cudf; print('cuDF:', cudf.__version__)"
+python -c "import cuml; print('cuML:', cuml.__version__)"
+```
+
+출력 예시:
+```
+cuDF: 24.12.00
+cuML: 24.12.00
+```
+
+#### 시각화 라이브러리 추가 (선택)
+
+```bash
+conda install -n rapids-24.12 -c conda-forge matplotlib seaborn
+```
+
+### 6.2 Docker로 설치
 
 Docker를 사용하면 환경 충돌 없이 RAPIDS를 사용할 수 있다.
 
@@ -232,43 +484,43 @@ docker run --gpus all -it -p 8888:8888 \
 | `-p 8888:8888` | Jupyter Lab 포트 |
 | `-v $(pwd):...` | 현재 디렉토리 마운트 |
 
-### 5.3 WSL2 설정 (Windows)
+### 6.3 pip으로 설치
 
-Windows에서 RAPIDS를 사용하려면 WSL2가 필요하다.
+pip으로도 RAPIDS를 설치할 수 있다. 단, 시스템에 CUDA Toolkit이 설치되어 있어야 한다.
 
-#### WSL2 설치
+#### 요구사항
 
-```powershell
-# PowerShell (관리자)
-wsl --install Ubuntu-22.04
-wsl --update
-```
+- Python 3.10, 3.11, 3.12
+- CUDA Toolkit 12.x 설치됨
+- NVRTC 포함 (Docker 사용 시 `devel` 이미지 필요)
 
-#### NVIDIA 드라이버 설치
+#### 설치
 
 ```bash
-# WSL 내부에서
-sudo apt update
-sudo apt install nvidia-driver-535
+# CUDA 12 환경
+pip install cudf-cu12 cuml-cu12 cugraph-cu12 --extra-index-url=https://pypi.nvidia.com
 ```
 
-#### CUDA 설치
+> **주의**: `-cu12` 접미사는 시스템에 설치된 CUDA Toolkit 버전과 일치해야 한다.
 
-```bash
-# CUDA for WSL 설치
-wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin
-sudo mv cuda-wsl-ubuntu.pin /etc/apt/preferences.d/cuda-repository-pin-600
-sudo apt-get update
-sudo apt-get -y install cuda
+#### 제한사항
+
+| 제한 | 설명 |
+|------|------|
+| TensorFlow | pip 버전과 호환 안 됨 (NGC 컨테이너 또는 Conda 사용) |
+| Infiniband | 미지원 |
+| NVRTC | 필수 (Docker는 `devel` 이미지 사용) |
+
+#### 설치 확인
+
+```python
+import cudf
+print(cudf.Series([1, 2, 3]))
 ```
-
-> 상세 가이드: https://learn.microsoft.com/en-us/windows/wsl/install
-
-이후 5.1 Conda 또는 5.2 Docker 방법으로 RAPIDS 설치.
 
 ---
 
-## 6. Quick Reference
+## 7. Quick Reference
 
 ### 환경 확인
 
@@ -290,41 +542,153 @@ conda env list                   # 환경 목록
 ### RAPIDS 설치 (한 줄)
 
 ```bash
-conda create -n rapids -c rapidsai -c conda-forge -c nvidia rapids=24.08 python=3.11 cuda-version=12.5
+conda create -n rapids-24.12 -c rapidsai -c conda-forge -c nvidia rapids=24.12 python=3.12 cuda-version=12.5 -y
 ```
 
 ---
 
-## 7. FAQ & 문제 해결
+## 8. FAQ & 문제 해결
 
-### Q1: nvidia-smi 실행 안 됨
+### 8.1 일반
+
+#### Q: nvidia-smi 실행 안 됨
 **원인**: NVIDIA 드라이버 미설치
 **해결**: https://www.nvidia.com/download/index.aspx 에서 드라이버 설치
 
-### Q2: nvcc --version 실행 안 됨
-**원인**: CUDA 미설치 또는 PATH 미설정
+#### Q: nvcc --version 실행 안 됨
+**원인**: CUDA Toolkit 미설치 또는 PATH 미설정
 **해결**: `~/.bashrc`에 추가:
 ```bash
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 ```
 
-### Q3: RAPIDS 설치 시 버전 충돌
-**원인**: CUDA와 RAPIDS 버전 불일치
-**해결**: https://docs.rapids.ai/install/ 에서 호환 버전 확인
-
-### Q4: WSL에서 GPU 인식 안 됨
-**원인**: WSL1 사용 또는 드라이버 문제
-**해결**:
-```bash
-wsl --set-version Ubuntu-22.04 2
-```
-
-### Q5: Out of Memory 에러
+#### Q: Out of Memory 에러
 **원인**: GPU VRAM 부족
 **해결**:
 - 배치 크기 줄이기
 - `nvidia-smi`로 다른 프로세스 확인 후 종료
+
+### 8.2 Conda 트러블슈팅
+
+#### Q: conda create 에러 발생
+**원인**: Conda 버전이 오래됨
+**해결**:
+```bash
+# Conda 업데이트 (23.10 이상 필요)
+conda update -n base conda
+
+# 또는 mamba 사용
+mamba create -n rapids-24.12 ...
+```
+
+#### Q: `__cuda` constraint conflict 에러
+```
+LibMambaUnsatisfiableError: Encountered problems while solving:
+ - package cuda-version-12.0 has constraint __cuda >=12 conflicting with __cuda-11.8-0
+```
+
+**원인**: 시스템 CUDA 드라이버와 설치하려는 cuda-version 불일치
+**해결**:
+1. `nvidia-smi`로 드라이버가 지원하는 CUDA 버전 확인
+2. 해당 버전 이하로 `cuda-version` 지정
+3. 또는 환경변수로 오버라이드:
+```bash
+CONDA_OVERRIDE_CUDA=12.5 conda create -n rapids ...
+```
+
+#### Q: 환경은 생성되지만 동작 안 함
+**원인**: `defaults` 채널에서 패키지가 설치됨
+**해결**:
+```bash
+# 현재 환경의 채널 확인
+conda list
+
+# defaults 채널 패키지가 있으면 환경 재생성
+conda create -n rapids-24.12 \
+    -c rapidsai -c conda-forge -c nvidia -c nodefaults \
+    rapids=24.12 python=3.12 cuda-version=12.5
+```
+
+> **참고**: Miniforge 사용 시 defaults 채널이 기본 제외되어 이 문제가 발생하지 않는다.
+
+### 8.3 Docker 트러블슈팅
+
+#### Q: Docker 이미지 변경사항 (RAPIDS 23.08+)
+- 모든 이미지가 Ubuntu 기반 (CUDA 12.5+는 Ubuntu 24.04)
+- base 이미지는 **ipython 셸**로 시작됨
+- bash 명령 실행 방법:
+```bash
+# ipython 내에서 bash 명령 실행
+!nvidia-smi
+
+# 또는 bash로 직접 시작
+docker run --gpus all -it nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12 /bin/bash
+```
+
+#### Q: Multi-GPU 환경 설정
+```bash
+docker run -t -d --gpus all \
+    --shm-size=1g \
+    --ulimit memlock=-1 \
+    --ulimit stack=67108864 \
+    -v $PWD:/ws \
+    nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12
+```
+
+### 8.4 pip 트러블슈팅
+
+#### Q: cudf-cu12 패키지를 찾을 수 없음
+```
+ERROR: Could not find a version that satisfies the requirement cudf-cu12
+```
+
+**해결**:
+1. Python 버전 확인 (3.10, 3.11, 3.12 지원)
+```bash
+python --version
+```
+2. NVIDIA 패키지 인덱스 추가 확인:
+```bash
+pip install cudf-cu12 --extra-index-url=https://pypi.nvidia.com
+```
+
+#### Q: TensorFlow와 함께 사용 불가
+**원인**: RAPIDS pip 패키지는 TensorFlow pip 패키지와 호환 안 됨
+**해결**: NGC 컨테이너 또는 Conda 사용
+
+### 8.5 WSL2 트러블슈팅
+
+#### Q: WSL에서 GPU 인식 안 됨
+**원인**: WSL1 사용 또는 드라이버 문제
+**해결**:
+```bash
+# WSL 버전 확인
+wsl -l -v
+
+# WSL2로 변환
+wsl --set-version Ubuntu-22.04 2
+```
+
+> **중요**: WSL 내부에 NVIDIA 드라이버를 설치하면 안 된다. Windows에 설치된 드라이버를 사용해야 한다.
+
+#### Q: Conda 설치 시 http 000 연결 에러
+**해결**:
+```powershell
+# PowerShell에서
+wsl --shutdown
+# WSL 다시 시작
+```
+
+#### Q: `libcuda.so: cannot open shared object file` 에러
+**해결**: [WSL GitHub Issue](https://github.com/microsoft/WSL/issues) 참고하여 해결
+
+#### WSL2 제한사항
+
+| 제한 | 설명 |
+|------|------|
+| 다중 GPU | 단일 GPU만 지원 |
+| GPU Direct Storage | 미지원 |
 
 ---
 
