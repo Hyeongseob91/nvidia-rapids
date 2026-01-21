@@ -206,129 +206,13 @@ NVIDIA AI Workbench는 복잡한 환경 설정을 단일 플랫폼으로 간소�
 
 ## 5. 로컬 환경 준비
 
-로컬에서 RAPIDS를 사용하려면 먼저 NVIDIA 드라이버와 CUDA 환경을 설정해야 한다.
+로컬에서 RAPIDS를 사용하려면 NVIDIA 드라이버 설정이 필요하다.
 
-### 5.1 CUDA와 CUDA Toolkit 이해하기
+> **핵심**: RAPIDS를 Conda로 설치하면 CUDA Toolkit이 자동 포함된다. 드라이버만 설치하면 된다.
 
-#### CUDA란?
+### 5.1 Windows 사용자 (WSL2 필수)
 
-CUDA(Compute Unified Device Architecture)는 NVIDIA GPU에서 병렬 연산을 수행하기 위한 플랫폼이다.
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    응용 프로그램                      │
-│              (PyTorch, RAPIDS, TensorFlow)           │
-├─────────────────────────────────────────────────────┤
-│                   CUDA Toolkit                       │
-│         (nvcc 컴파일러, cuBLAS, cuDNN 등)             │
-├─────────────────────────────────────────────────────┤
-│                  NVIDIA 드라이버                      │
-├─────────────────────────────────────────────────────┤
-│                   NVIDIA GPU                         │
-└─────────────────────────────────────────────────────┘
-```
-
-#### 왜 CUDA Toolkit이 필요한가?
-
-| 구성 요소 | 역할 | 필요한 경우 |
-|----------|------|------------|
-| **NVIDIA 드라이버** | GPU와 OS 간 통신 | 모든 GPU 사용 시 필수 |
-| **CUDA Toolkit** | GPU 프로그래밍 도구 (nvcc, 라이브러리) | PyTorch, TensorFlow 등 딥러닝 프레임워크 사용 시 |
-| **cuDNN** | 딥러닝 최적화 라이브러리 | 딥러닝 학습/추론 시 |
-
-- `nvidia-smi`의 "CUDA Version"은 **드라이버가 지원하는 최대 CUDA 버전**이다
-- 실제 CUDA Toolkit은 별도로 설치해야 한다
-- RAPIDS는 Conda 설치 시 필요한 CUDA 런타임을 자동으로 포함한다
-
-> **참고**: RAPIDS를 Conda로 설치하면 CUDA Toolkit을 별도로 설치하지 않아도 된다. 하지만 PyTorch나 다른 딥러닝 프레임워크와 함께 사용하려면 시스템에 CUDA Toolkit을 설치하는 것이 좋다.
-
-### 5.2 Windows에서 CUDA Toolkit 설치
-
-Windows에서 RAPIDS를 직접 실행할 수는 없지만, PyTorch 등 다른 CUDA 기반 라이브러리를 위해 CUDA Toolkit 설치가 필요할 수 있다.
-
-#### Step 1: NVIDIA 드라이버 설치
-
-1. [NVIDIA 드라이버 다운로드](https://www.nvidia.com/download/index.aspx) 접속
-2. GPU 모델 선택 후 다운로드
-3. 설치 후 재부팅
-
-#### Step 2: CUDA Toolkit 설치
-
-1. [CUDA Toolkit Archive](https://developer.nvidia.com/cuda-toolkit-archive) 접속
-2. 원하는 CUDA 버전 선택 (예: CUDA 12.5)
-3. **Operating System**: Windows
-4. **Architecture**: x86_64
-5. **Version**: 10 또는 11
-6. **Installer Type**: exe (local) 권장
-
-```
-다운로드 후 설치 진행 → 재부팅
-```
-
-#### Step 3: 설치 확인
-
-```powershell
-nvcc --version
-```
-
-출력 예시:
-```
-nvcc: NVIDIA (R) Cuda compiler driver
-Cuda compilation tools, release 12.5, V12.5.40
-```
-
-### 5.3 Ubuntu에서 드라이버/CUDA 설치
-
-#### 방법 1: 권장 드라이버 자동 설치
-
-```bash
-# 권장 드라이버 확인
-ubuntu-drivers devices
-
-# 권장 드라이버 자동 설치
-sudo ubuntu-drivers autoinstall
-
-# 재부팅
-sudo reboot
-```
-
-#### 방법 2: 특정 드라이버 수동 설치
-
-```bash
-sudo apt update
-sudo apt install nvidia-driver-535
-sudo reboot
-```
-
-#### CUDA Toolkit 설치
-
-```bash
-# CUDA 저장소 추가 (Ubuntu 22.04 예시)
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-sudo dpkg -i cuda-keyring_1.1-1_all.deb
-sudo apt update
-
-# CUDA Toolkit 설치
-sudo apt install cuda-toolkit-12-5
-```
-
-#### 환경 변수 설정
-
-`~/.bashrc`에 추가:
-
-```bash
-export PATH=/usr/local/cuda/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-```
-
-```bash
-source ~/.bashrc
-nvcc --version
-```
-
-### 5.4 WSL2 환경 설정 (Windows)
-
-Windows에서 RAPIDS를 사용하려면 WSL2(Windows Subsystem for Linux 2)가 필요하다.
+Windows에서 RAPIDS를 사용하려면 **WSL2가 필수**다. RAPIDS는 Linux에서만 동작한다.
 
 #### 필수 요구사항
 
@@ -338,61 +222,98 @@ Windows에서 RAPIDS를 사용하려면 WSL2(Windows Subsystem for Linux 2)가 �
 | WSL 버전 | WSL2 필수 (WSL1 미지원) |
 | GPU | Compute Capability 7.0 이상 |
 
-#### Step 1: Windows 기능 활성화
+#### Step 1: Windows에 NVIDIA 드라이버 설치
 
-**방법 1**: 제어판에서 설정
-1. **제어판** → **프로그램** → **Windows 기능 켜기/끄기**
-2. 다음 항목 체크:
-   - ✅ Linux용 Windows 하위 시스템
-   - ✅ 가상 머신 플랫폼
-3. 재부팅
+> **중요**: WSL2는 Windows 드라이버를 공유한다. WSL 내부에 드라이버를 설치하면 안 된다.
 
-**방법 2**: PowerShell (관리자)
-```powershell
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
-```
-
-재부팅 후 계속 진행.
+1. [NVIDIA 드라이버 다운로드](https://www.nvidia.com/download/index.aspx)에서 **Windows용** 드라이버 설치
+2. Game Ready 또는 Studio 드라이버 모두 가능
+3. 설치 후 재부팅
 
 #### Step 2: WSL2 설치
 
+**방법 1**: PowerShell (관리자) - 권장
 ```powershell
-# PowerShell (관리자)
 wsl --install Ubuntu-22.04
 wsl --set-default-version 2
 wsl --update
 ```
 
-#### Step 3: Windows에 NVIDIA 드라이버 설치
+**방법 2**: 수동 설치
+1. **제어판** → **프로그램** → **Windows 기능 켜기/끄기**
+2. 체크: ✅ Linux용 Windows 하위 시스템, ✅ 가상 머신 플랫폼
+3. 재부팅 후 Microsoft Store에서 Ubuntu 설치
 
-> **중요**: WSL2에서는 Windows에 설치된 드라이버를 사용한다. WSL 내부에 별도로 드라이버를 설치하면 안 된다.
-
-1. [NVIDIA 드라이버 다운로드](https://www.nvidia.com/download/index.aspx)에서 **Windows용** 드라이버 설치
-2. "CUDA - WSL" 또는 일반 Game Ready/Studio 드라이버 모두 가능
-
-#### Step 4: WSL에서 GPU 인식 확인
+#### Step 3: WSL에서 GPU 인식 확인
 
 ```bash
 # WSL 터미널에서
 nvidia-smi
 ```
 
-GPU 정보가 표시되면 정상.
+GPU 정보가 표시되면 정상. 이후 **6장**에서 RAPIDS 설치 진행.
 
-#### Step 5: WSL에서 CUDA Toolkit 설치 (선택)
+#### (선택) WSL에서 CUDA Toolkit 설치
+
+> Conda로 RAPIDS 설치 시 불필요. pip 설치 시에만 필요.
 
 ```bash
-# CUDA for WSL 저장소 추가
 wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-keyring_1.1-1_all.deb
 sudo dpkg -i cuda-keyring_1.1-1_all.deb
 sudo apt update
-
-# CUDA Toolkit 설치
 sudo apt install cuda-toolkit-12-5
 ```
 
-이후 6장의 Conda 또는 Docker 방법으로 RAPIDS 설치.
+#### WSL2 제한사항
+
+| 제한 | 설명 |
+|------|------|
+| 다중 GPU | 단일 GPU만 지원 |
+| GPU Direct Storage | 미지원 |
+
+### 5.2 Linux/Ubuntu 사용자
+
+#### Step 1: NVIDIA 드라이버 설치
+
+**방법 1**: 자동 설치 (권장)
+```bash
+ubuntu-drivers devices          # 권장 드라이버 확인
+sudo ubuntu-drivers autoinstall # 자동 설치
+sudo reboot
+```
+
+**방법 2**: 수동 설치
+```bash
+sudo apt update
+sudo apt install nvidia-driver-535
+sudo reboot
+```
+
+#### Step 2: 드라이버 확인
+
+```bash
+nvidia-smi
+```
+
+GPU 정보가 표시되면 정상. 이후 **6장**에서 RAPIDS 설치 진행.
+
+#### (선택) CUDA Toolkit 설치
+
+> Conda로 RAPIDS 설치 시 불필요. pip 설치 시에만 필요.
+
+```bash
+# Ubuntu 22.04 예시
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt update
+sudo apt install cuda-toolkit-12-5
+```
+
+환경 변수 설정 (`~/.bashrc`에 추가):
+```bash
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+```
 
 ---
 
