@@ -321,41 +321,43 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 ### 6.1 Conda로 설치 (권장)
 
-#### Step 1: Miniforge 다운로드
+#### 이미 Conda가 설치되어 있다면?
+
+기존 Anaconda/Miniconda 사용자는 바로 **RAPIDS 환경 생성** 단계로 이동.
+
+> **주의**: defaults 채널 문제 방지를 위해 `-c nodefaults` 추가 권장
+
+```bash
+conda create -n rapids-25.12 \
+    -c rapidsai -c conda-forge -c nvidia -c nodefaults \
+    rapids=25.12 python=3.12 cuda-version=12.5 -y
+```
+
+#### Conda가 없다면? → Miniforge 설치
+
+> **왜 Miniforge?**: conda-forge 기본 채널, defaults 채널 문제 없음, libmamba 솔버 포함 (빠름)
+
+**Step 1: Miniforge 다운로드**
 
 ```bash
 cd /tmp
 wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh" -O miniforge.sh
 ```
 
-#### Step 2: Miniforge 설치
+**Step 2: Miniforge 설치**
 
 ```bash
-# -b: 대화형 프롬프트 없이 설치
-# -p: 설치 경로 지정
 bash miniforge.sh -b -p ~/miniforge3
 ```
 
-설치 위치: `~/miniforge3`
-
-#### Step 3: Conda 초기화
+**Step 3: Conda 초기화 및 활성화**
 
 ```bash
 ~/miniforge3/bin/conda init bash
+source ~/.bashrc  # 또는 새 터미널 열기
 ```
 
-> 이 명령은 `~/.bashrc`에 conda 설정을 추가한다.
-
-#### Step 4: Conda 활성화
-
-**방법 1**: 새 터미널 열기 (권장)
-
-**방법 2**: 현재 터미널에서 바로 사용
-```bash
-source ~/miniforge3/etc/profile.d/conda.sh
-```
-
-#### Step 5: RAPIDS 환경 생성
+#### RAPIDS 환경 생성
 
 본인 환경에 맞게 `cuda-version`을 수정:
 
@@ -544,7 +546,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 conda update -n base conda
 
 # 또는 mamba 사용
-mamba create -n rapids-24.12 ...
+mamba create -n rapids-25.12 ...
 ```
 
 #### Q: `__cuda` constraint conflict 에러
