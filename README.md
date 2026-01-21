@@ -11,6 +11,17 @@ RAPIDS는 NVIDIA가 개발한 오픈소스 GPU 가속 데이터 분석 라이브
 - **cuDF**: GPU 가속 pandas
 - **cuML**: GPU 가속 scikit-learn
 
+### 최신 버전 정보 (2026년 1월 기준)
+
+| 항목 | 현재 상태 |
+|------|----------|
+| 최신 버전 | **RAPIDS 25.12** |
+| CUDA 최소 요구 | 12.2 이상 |
+| Python 지원 | 3.10, 3.11, 3.12, 3.13 |
+| Docker 이미지 | CUDA 메이저 버전별 단일 태그 (cuda12, cuda13) |
+
+> **새 기능**: cuML이 scikit-learn 가속 지원, Polars GPU Engine 추가, Google Colab에 cuDF 기본 탑재
+
 ### 요구사항 요약
 
 | 항목 | 요구사항 |
@@ -38,25 +49,35 @@ RAPIDS는 NVIDIA가 개발한 오픈소스 GPU 가속 데이터 분석 라이브
 
 ```
 GPU가 있나요?
-├─ 없음 → Colab 또는 Kaggle (4장 참고)
-└─ 있음 → 환경 격리가 필요한가요?
-          ├─ 예 → Docker (6.2 참고)
-          └─ 아니오 → Conda (6.1 참고)
+├─ 없음 → 클라우드 환경 (4장 참고)
+│         ├─ Colab: 빠른 테스트, 입문자
+│         └─ Kaggle: 대회 참가, T4 GPU x2
+│
+└─ 있음 → 로컬 환경 (5~6장 참고)
+          ├─ 환경 격리 필요 → Docker (6.2)
+          └─ 유연한 관리 → Conda (6.1)
 ```
 
-> **로컬 설치 전**: 5장에서 CUDA 환경을 먼저 설정하세요.
-
-### 방법별 비교
+### 클라우드 환경 비교 (GPU 없는 경우)
 
 | 방법 | 장점 | 단점 | 추천 대상 |
 |------|------|------|----------|
-| **Colab** | 설치 불필요, 무료 GPU | 세션 12시간 제한 | 입문자, 빠른 테스트 |
+| **Colab** | 설치 불필요, 무료 GPU, cuDF 기본 탑재 | 세션 12시간 제한 | 입문자, 빠른 테스트 |
 | **Kaggle** | 설치 불필요, T4 GPU x2 | 주당 사용 시간 제한 | 입문자, 대회 참가 |
-| **Docker** | 환경 격리, 재현성 | Docker 학습 필요 | 팀 프로젝트, 프로덕션 |
+| **AI Workbench** | GUI 환경, 자동 설정 | NVIDIA 계정 필요 | 복잡한 설정 회피 |
+
+> **입문자 추천**: Colab → Kaggle 순서로 시작
+
+### 로컬 환경 비교 (GPU 있는 경우)
+
+| 방법 | 장점 | 단점 | 추천 대상 |
+|------|------|------|----------|
 | **Conda** | 유연한 패키지 관리, CUDA 자동 포함 | 환경 충돌 가능성 | 개인 연구, 커스터마이징 |
+| **Docker** | 환경 격리, 재현성 | Docker 학습 필요 | 팀 프로젝트, 프로덕션 |
 | **pip** | 기존 환경에 추가 가능 | CUDA Toolkit 별도 설치 필요 | 기존 Python 환경 활용 |
 
-> **입문자 추천 순서**: Colab → Kaggle → Conda → Docker → pip
+> **로컬 설치 전**: 5장에서 CUDA 환경을 먼저 설정하세요.
+> **추천 순서**: Conda → Docker → pip
 
 ---
 
@@ -106,7 +127,7 @@ NVIDIA GeForce RTX 4060, 8.9
 
 Compute Capability **7.0 이상**이면 RAPIDS 사용 가능.
 
-### RAPIDS 지원 CUDA 버전 (2025년 1월 기준)
+### RAPIDS 지원 CUDA 버전 (2026년 1월 기준)
 
 | CUDA 버전 | 지원 여부 | 최소 드라이버 |
 |-----------|----------|--------------|
@@ -127,6 +148,8 @@ Colab은 Google이 제공하는 무료 Jupyter Notebook 환경이다. cuDF가 �
 **GPU 런타임 설정:**
 1. 상단 **런타임** → **런타임 유형 변경**
 2. **T4 GPU** 선택 후 저장
+
+![Colab GPU 런타임 설정](assets/colab.png)
 
 **RAPIDS 사용:**
 ```python
@@ -149,10 +172,18 @@ from cuml.linear_model import LinearRegression
 
 ### 4.2 Kaggle
 
-Kaggle Notebook에는 RAPIDS가 기본 포함되어 있다.
+[Kaggle Notebook](https://www.kaggle.com/code)에는 RAPIDS가 기본 포함되어 있다.
 
 **GPU 설정:**
-1. Notebook 우측 **Settings** → **Accelerator** → **GPU T4 x2** 선택
+1. 상단 **Settings** → **Accelerator** → **GPU T4 x2** 선택
+
+![Kaggle GPU 설정](assets/kaggle.png)
+
+**GPU T4 옵션이 비활성화된 경우:**
+- **휴대폰 인증 미완료**: 프로필 → Settings → Phone Verification 완료
+- **주간 할당량 소진**: 주 30시간 제공, 매주 토요일 09:00(KST) 초기화
+- **다른 GPU 세션 실행 중**: Active Events에서 기존 세션 종료
+- **브라우저 간섭**: 광고 차단기 끄거나 시크릿 모드로 접속
 
 **RAPIDS 사용:**
 ```python
@@ -408,31 +439,31 @@ source ~/miniforge3/etc/profile.d/conda.sh
 본인 환경에 맞게 `cuda-version`을 수정:
 
 ```bash
-conda create -n rapids-24.12 \
+conda create -n rapids-25.12 \
     -c rapidsai -c conda-forge -c nvidia \
-    rapids=24.12 python=3.12 cuda-version=12.5 -y
+    rapids=25.12 python=3.12 cuda-version=12.5 -y
 ```
 
-> 설치 시간: 약 10-20분 소요 (네트워크 환경에 따라 다름)
+> **Tip**: mamba를 사용하면 더 빠르게 설치할 수 있다: `mamba create -n rapids-25.12 ...`
 
 **옵션 설명:**
 
 | 옵션 | 설명 |
 |------|------|
-| `-n rapids-24.12` | 환경 이름 |
+| `-n rapids-25.12` | 환경 이름 |
 | `-c rapidsai -c conda-forge -c nvidia` | 패키지 채널 |
-| `rapids=24.12` | RAPIDS 버전 |
-| `python=3.12` | Python 버전 |
+| `rapids=25.12` | RAPIDS 버전 |
+| `python=3.12` | Python 버전 (3.10~3.13 지원) |
 | `cuda-version=12.5` | nvidia-smi에서 확인한 버전 이하로 지정 |
 | `-y` | 확인 프롬프트 자동 승인 |
 
 #### Step 6: 환경 활성화
 
 ```bash
-conda activate rapids-24.12
+conda activate rapids-25.12
 ```
 
-프롬프트 앞에 `(rapids-24.12)`가 표시되면 정상.
+프롬프트 앞에 `(rapids-25.12)`가 표시되면 정상.
 
 #### Step 7: 설치 확인
 
@@ -443,14 +474,14 @@ python -c "import cuml; print('cuML:', cuml.__version__)"
 
 출력 예시:
 ```
-cuDF: 24.12.00
-cuML: 24.12.00
+cuDF: 25.12.00
+cuML: 25.12.00
 ```
 
 #### 시각화 라이브러리 추가 (선택)
 
 ```bash
-conda install -n rapids-24.12 -c conda-forge matplotlib seaborn
+conda install -n rapids-25.12 -c conda-forge matplotlib seaborn
 ```
 
 ### 6.2 Docker로 설치
@@ -465,17 +496,23 @@ Docker를 사용하면 환경 충돌 없이 RAPIDS를 사용할 수 있다.
 #### RAPIDS 컨테이너 실행
 
 ```bash
-# 이미지 다운로드 및 실행
+# 이미지 다운로드 및 실행 (CUDA 12 환경)
 docker run --gpus all -it -p 8888:8888 \
-    nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12
+    rapidsai/base:25.12-cuda12-py3.12
+
+# CUDA 13 환경
+docker run --gpus all -it -p 8888:8888 \
+    rapidsai/base:25.12-cuda13-py3.13
 ```
+
+> **참고**: RAPIDS 25.10부터 Docker 이미지 태그가 CUDA 메이저 버전별로 통합됨 (cuda12, cuda13)
 
 #### 로컬 디렉토리 마운트
 
 ```bash
 docker run --gpus all -it -p 8888:8888 \
     -v $(pwd):/rapids/notebooks/host \
-    nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12
+    rapidsai/base:25.12-cuda12-py3.12
 ```
 
 | 옵션 | 설명 |
@@ -484,24 +521,31 @@ docker run --gpus all -it -p 8888:8888 \
 | `-p 8888:8888` | Jupyter Lab 포트 |
 | `-v $(pwd):...` | 현재 디렉토리 마운트 |
 
+> **참고**: base 이미지는 기본적으로 ipython 셸로 시작된다. bash로 시작하려면 명령 끝에 `/bin/bash`를 추가.
+
 ### 6.3 pip으로 설치
 
 pip으로도 RAPIDS를 설치할 수 있다. 단, 시스템에 CUDA Toolkit이 설치되어 있어야 한다.
 
 #### 요구사항
 
-- Python 3.10, 3.11, 3.12
-- CUDA Toolkit 12.x 설치됨
+- Python 3.10, 3.11, 3.12, 3.13
+- CUDA Toolkit 12.x 또는 13.x 설치됨
 - NVRTC 포함 (Docker 사용 시 `devel` 이미지 필요)
 
 #### 설치
 
 ```bash
 # CUDA 12 환경
-pip install cudf-cu12 cuml-cu12 cugraph-cu12 --extra-index-url=https://pypi.nvidia.com
+pip install --extra-index-url=https://pypi.nvidia.com \
+    cudf-cu12==25.12.* cuml-cu12==25.12.* cugraph-cu12==25.12.*
+
+# CUDA 13 환경
+pip install --extra-index-url=https://pypi.nvidia.com \
+    cudf-cu13==25.12.* cuml-cu13==25.12.* cugraph-cu13==25.12.*
 ```
 
-> **주의**: `-cu12` 접미사는 시스템에 설치된 CUDA Toolkit 버전과 일치해야 한다.
+> **주의**: `-cu12` 또는 `-cu13` 접미사는 시스템에 설치된 CUDA Toolkit 버전과 일치해야 한다.
 
 #### 제한사항
 
@@ -542,7 +586,7 @@ conda env list                   # 환경 목록
 ### RAPIDS 설치 (한 줄)
 
 ```bash
-conda create -n rapids-24.12 -c rapidsai -c conda-forge -c nvidia rapids=24.12 python=3.12 cuda-version=12.5 -y
+conda create -n rapids-25.12 -c rapidsai -c conda-forge -c nvidia rapids=25.12 python=3.12 cuda-version=12.5 -y
 ```
 
 ---
@@ -605,9 +649,9 @@ CONDA_OVERRIDE_CUDA=12.5 conda create -n rapids ...
 conda list
 
 # defaults 채널 패키지가 있으면 환경 재생성
-conda create -n rapids-24.12 \
+conda create -n rapids-25.12 \
     -c rapidsai -c conda-forge -c nvidia -c nodefaults \
-    rapids=24.12 python=3.12 cuda-version=12.5
+    rapids=25.12 python=3.12 cuda-version=12.5
 ```
 
 > **참고**: Miniforge 사용 시 defaults 채널이 기본 제외되어 이 문제가 발생하지 않는다.
@@ -623,7 +667,7 @@ conda create -n rapids-24.12 \
 !nvidia-smi
 
 # 또는 bash로 직접 시작
-docker run --gpus all -it nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12 /bin/bash
+docker run --gpus all -it rapidsai/base:25.12-cuda12-py3.12 /bin/bash
 ```
 
 #### Q: Multi-GPU 환경 설정
@@ -633,7 +677,7 @@ docker run -t -d --gpus all \
     --ulimit memlock=-1 \
     --ulimit stack=67108864 \
     -v $PWD:/ws \
-    nvcr.io/nvidia/rapidsai/base:24.12-cuda12.5-py3.12
+    rapidsai/base:25.12-cuda12-py3.12
 ```
 
 ### 8.4 pip 트러블슈팅
@@ -644,13 +688,13 @@ ERROR: Could not find a version that satisfies the requirement cudf-cu12
 ```
 
 **해결**:
-1. Python 버전 확인 (3.10, 3.11, 3.12 지원)
+1. Python 버전 확인 (3.10, 3.11, 3.12, 3.13 지원)
 ```bash
 python --version
 ```
 2. NVIDIA 패키지 인덱스 추가 확인:
 ```bash
-pip install cudf-cu12 --extra-index-url=https://pypi.nvidia.com
+pip install cudf-cu12==25.12.* --extra-index-url=https://pypi.nvidia.com
 ```
 
 #### Q: TensorFlow와 함께 사용 불가
@@ -689,6 +733,44 @@ wsl --shutdown
 |------|------|
 | 다중 GPU | 단일 GPU만 지원 |
 | GPU Direct Storage | 미지원 |
+
+---
+
+## 9. 주요 변경사항 (버전별)
+
+RAPIDS 버전 업그레이드 시 주의해야 할 주요 변경사항이다.
+
+### 플랫폼 지원 변경
+
+| 버전 | 변경사항 | 영향 |
+|------|----------|------|
+| v25.12 | CUDA 최소 요구사항 12.0 → 12.2 | CUDA 12.0/12.1 사용자는 업그레이드 필요 |
+| v25.10 | Docker 이미지 CUDA 메이저 버전별 단일 태그로 통합 | 이미지 태그 변경 확인 필요 |
+| v25.08 | CUDA 11 지원 완전 종료 | CUDA 11 사용자는 12.x로 업그레이드 필수 |
+| v24.10 | Python 3.9 지원 종료, 3.12 추가 | Python 버전 업그레이드 필요 |
+| v24.02 | Pascal GPU (GTX 10 시리즈) 지원 종료 | Compute Capability 7.0+ 필수 |
+
+### 라이브러리 폐기/변경
+
+| 버전 | 변경사항 | 대안 |
+|------|----------|------|
+| v26.02 | rapidsai/miniforge-cuda Docker 이미지 폐기 예정 | 공식 base 이미지 사용 |
+| v25.12 | cuGraph-Service 패키지 배포 중단 | - |
+| v25.10 | UCX-Py 프로젝트 종료 | - |
+| v25.10 | pynvjitlink 종료 | - |
+| v25.08 | cuGraph-DGL 패키지 배포 중단 | - |
+| v25.06 | cuSpatial 패키지 배포 중단 | - |
+| v25.04 | cuml-cpu 폐기 | `cuml.accel` 사용 |
+
+### Docker 이미지 변경 (v25.08+)
+
+| 변경사항 | 내용 |
+|----------|------|
+| CUDA 버전 | 12.8 → 12.9로 교체 |
+| 기본 OS | CUDA 12.5+는 Ubuntu 24.04 |
+| 기본 셸 | ipython (bash 아님) |
+
+> 최신 공지사항: https://docs.rapids.ai/notices/
 
 ---
 
